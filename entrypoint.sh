@@ -11,7 +11,7 @@ fi
 echo $BUILD | jq . - > /tmp/build-spec.json
 cat /tmp/build-spec.json
 
-cat /tmp/build-spec.json | jq -r '.spec.strategy.customStrategy.env | map([ "export " + .name, "\\"" + .value + "\\""] | join("=")) | join(" \n")' > /tmp/env-vars
+cat /tmp/build-spec.json | jq -r '.spec.strategy.customStrategy.env | map([ "export " + .name, "\"" + .value + "\""] | join("=")) | join(" \n")' > /tmp/env-vars
 
 source /tmp/env-vars
 cat /tmp/env-vars
@@ -28,13 +28,10 @@ if [[ "${SOURCE_REPOSITORY}" != "git://"* ]] && [[ "${SOURCE_REPOSITORY}" != "gi
   fi
 fi
 
-export URL
-GIT_USER="$(cat /var/run/secrets/openshift.io/source/username)"
-GIT_PASS="$(cat /var/run/secrets/openshift.io/source/password)"
-URL="$(echo $URL | sed -e s%://%://$GIT_USER:$GIT_PASS@%g)"
+# Use the public repository URL
 SOURCE_REPOSITORY="${URL}"
-SOURCE_REF="${SOURCE_REF-main}"
 
+# Proceed with cloning
 if [ -n "${SOURCE_REF}" ]; then
   BUILD_DIR=$(mktemp -d)
   git clone --recursive "${SOURCE_REPOSITORY}" "${BUILD_DIR}"
@@ -54,10 +51,15 @@ if [ -n "${SOURCE_REF}" ]; then
   cd ${SOURCE_CONTEXT_DIR}
   ls -lah ./
 
-  # Ensure Gatling script has executable permissions
-  chmod +x /opt/gatling/bin/gatling.sh
-  /opt/gatling/bin/gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation"
-  
+  # Ensure gatling.sh has the correct executable permissions
+  if [ -f "/opt/gatling/bin/gatling.sh" ]; then
+    chmod +x /opt/gatling/bin/gatling.sh
+    /opt/gatling/bin/gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation"
+  else
+    echo "Error: gatling.sh not found!"
+    exit 1
+  fi
+
   export EXIT_CODE="$?"
 
   # Check if the results directory exists and process it
