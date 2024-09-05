@@ -49,14 +49,18 @@ if [ -n "${SOURCE_REF}" ]; then
   cd ${SOURCE_CONTEXT_DIR} || exit 1
   ls -lah ./
 
-  # Run the Gatling simulation
-  /opt/gatling/bin/gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation"
+  # Ensure results directory exists inside simulations folder
+  SIMULATION_RESULTS_DIR="/opt/gatling/user-files/simulations/results"
+  mkdir -p "${SIMULATION_RESULTS_DIR}"
+
+  # Run the Gatling simulation and save results in the simulations folder
+  /opt/gatling/bin/gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation" --results-folder "${SIMULATION_RESULTS_DIR}"
 
   export EXIT_CODE="$?"
 
   # Check if the results directory exists and process it
-  if [ -d "/opt/gatling/results/" ]; then
-    cd /opt/gatling/results/ || exit 1
+  if [ -d "${SIMULATION_RESULTS_DIR}" ]; then
+    cd "${SIMULATION_RESULTS_DIR}" || exit 1
     if [ "$(ls -A .)" ]; then
       for file in $(find ./ -type f); do
         curl -s -k -u "$GO_USERNAME:$GO_PASSWORD" "$GO_SERVER_URL/files/$GO_PIPELINE_NAME/$GO_PIPELINE_COUNTER/$GO_STAGE_NAME/$GO_STAGE_COUNTER/$GO_JOB_NAME/${file:2}" -F file=@${file:2} -H 'Confirm:true' > /dev/null
