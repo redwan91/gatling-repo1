@@ -2,6 +2,12 @@
 set -o pipefail
 IFS=$'\n\t'
 
+# Check if required environment variables are set
+if [[ -z "$SOURCE_REPOSITORY" || -z "$RUN_DESCRIPTION" ]]; then
+  echo "Error: SOURCE_REPOSITORY or RUN_DESCRIPTION is not set."
+  exit 1
+fi
+
 echo $BUILD | jq . - > /tmp/build-spec.json
 cat /tmp/build-spec.json
 
@@ -12,7 +18,7 @@ cat /tmp/env-vars
 echo --
 
 if [[ "$DEBUG" = "true" ]]; then
-	set -x
+    set -x
 fi
 
 if [[ "${SOURCE_REPOSITORY}" != "git://"* ]] && [[ "${SOURCE_REPOSITORY}" != "git@"* ]]; then
@@ -33,13 +39,14 @@ if [ -n "${SOURCE_REF}" ]; then
   BUILD_DIR=$(mktemp -d)
   git clone --recursive "${SOURCE_REPOSITORY}" "${BUILD_DIR}"
   if [ $? != 0 ]; then
-    echo "Error trying to fetch git source: ${SOURCE_REPOSITORY}"
+    echo "Error: Unable to clone the git repository: ${SOURCE_REPOSITORY}"
     exit 1
   fi
-  pushd "${BUILD_DIR}"
+
+  pushd "${BUILD_DIR}" > /dev/null
   git checkout "${SOURCE_REF}"
   if [ $? != 0 ]; then
-    echo "Error trying to checkout branch: ${SOURCE_REF}"
+    echo "Error: Unable to checkout branch: ${SOURCE_REF}"
     exit 1
   fi
 
@@ -57,9 +64,10 @@ if [ -n "${SOURCE_REF}" ]; then
     curl -s -k -u $GO_USERNAME:$GO_PASSWORD $GO_SERVER_URL/files/$GO_PIPELINE_NAME/$GO_PIPELINE_COUNTER/$GO_STAGE_NAME/$GO_STAGE_COUNTER/$GO_JOB_NAME/${file:2} -F file=@${file:2} -H 'Confirm:true' > /dev/null
   done
 
-  popd
+  popd > /dev/null
 else
-  echo -- no source-ref
+  echo "Error: No source-ref provided."
+  exit 1
 fi
 
 exit "$EXIT_CODE"

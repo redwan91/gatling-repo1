@@ -5,8 +5,11 @@ import io.gatling.http.Predef._
 
 class MySimulation extends Simulation {
 
+  val baseUrl = sys.env.getOrElse("BASE_URL", "https://jsonplaceholder.typicode.com")  // Using an environment variable
+  val users = sys.env.getOrElse("USERS", "10").toInt  // Number of users from environment
+
   val httpConf = http
-    .baseUrl("https://jsonplaceholder.typicode.com") // API endpoint for testing
+    .baseUrl(baseUrl)  // API endpoint for testing
     .header("Accept", "application/json")
 
   val scn = scenario("Basic API Test")
@@ -15,6 +18,6 @@ class MySimulation extends Simulation {
       .check(status.is(200)))
 
   setUp(
-    scn.inject(atOnceUsers(10))  // Inject 10 users at once
+    scn.inject(atOnceUsers(users))  // Injecting users based on environment variable
   ).protocols(httpConf)
 }
