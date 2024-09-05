@@ -10,8 +10,8 @@ RUN apk add --update jq git bash curl \
 # Copy the Gatling simulations into the appropriate folder
 COPY simulations/ /opt/gatling/user-files/simulations/
 
-# Ensure gatling.sh and target directory have the correct permissions
-RUN chmod -R 777 /opt/gatling/bin/ /opt/gatling/target/
+# Ensure /opt/gatling/target/ exists and set permissions
+RUN mkdir -p /opt/gatling/target/ && chmod -R 777 /opt/gatling/bin/ /opt/gatling/target/
 
 # Set entrypoint to use the custom script
 ENTRYPOINT ["bash", "/entrypoint.sh"]
