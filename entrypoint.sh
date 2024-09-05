@@ -11,7 +11,7 @@ fi
 echo $BUILD | jq . - > /tmp/build-spec.json
 cat /tmp/build-spec.json
 
-cat /tmp/build-spec.json | jq -r '.spec.strategy.customStrategy.env | map([ "export " + .name, "\"" + .value + "\""] | join("=")) | join(" \n")' > /tmp/env-vars
+cat /tmp/build-spec.json | jq -r '.spec.strategy.customStrategy.env | map([ "export " + .name, "\\"" + .value + "\\""] | join("=")) | join(" \n")' > /tmp/env-vars
 
 source /tmp/env-vars
 cat /tmp/env-vars
@@ -33,7 +33,7 @@ GIT_USER="$(cat /var/run/secrets/openshift.io/source/username)"
 GIT_PASS="$(cat /var/run/secrets/openshift.io/source/password)"
 URL="$(echo $URL | sed -e s%://%://$GIT_USER:$GIT_PASS@%g)"
 SOURCE_REPOSITORY="${URL}"
-SOURCE_REF="${SOURCE_REF-master}"
+SOURCE_REF="${SOURCE_REF-main}"
 
 if [ -n "${SOURCE_REF}" ]; then
   BUILD_DIR=$(mktemp -d)
@@ -54,15 +54,26 @@ if [ -n "${SOURCE_REF}" ]; then
   cd ${SOURCE_CONTEXT_DIR}
   ls -lah ./
 
-  gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation"
-
+  # Ensure Gatling script has executable permissions
+  chmod +x /opt/gatling/bin/gatling.sh
+  /opt/gatling/bin/gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation"
+  
   export EXIT_CODE="$?"
 
-  cd /opt/gatling/results/
-  cd *
-  for file in $(find ./ -type f); do
-    curl -s -k -u $GO_USERNAME:$GO_PASSWORD $GO_SERVER_URL/files/$GO_PIPELINE_NAME/$GO_PIPELINE_COUNTER/$GO_STAGE_NAME/$GO_STAGE_COUNTER/$GO_JOB_NAME/${file:2} -F file=@${file:2} -H 'Confirm:true' > /dev/null
-  done
+  # Check if the results directory exists and process it
+  if [ -d "/opt/gatling/results/" ]; then
+    cd /opt/gatling/results/
+    if [ "$(ls -A .)" ]; then
+      cd *
+      for file in $(find ./ -type f); do
+        curl -s -k -u $GO_USERNAME:$GO_PASSWORD $GO_SERVER_URL/files/$GO_PIPELINE_NAME/$GO_PIPELINE_COUNTER/$GO_STAGE_NAME/$GO_STAGE_COUNTER/$GO_JOB_NAME/${file:2} -F file=@${file:2} -H 'Confirm:true' > /dev/null
+      done
+    else
+      echo "No files found in the results directory."
+    fi
+  else
+    echo "Results directory not found."
+  fi
 
   popd > /dev/null
 else
