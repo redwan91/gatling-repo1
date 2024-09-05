@@ -11,7 +11,8 @@ fi
 echo $BUILD | jq . - > /tmp/build-spec.json
 cat /tmp/build-spec.json
 
-cat /tmp/build-spec.json | jq -r '.spec.strategy.customStrategy.env | map([ "export " + .name, "\"" + .value + "\""] | join("=")) | join(" \n")' > /tmp/env-vars
+# Fix jq command syntax issue
+cat /tmp/build-spec.json | jq -r '.spec.strategy.customStrategy.env[] | "export \(.name)=\(.value)"' > /tmp/env-vars
 
 source /tmp/env-vars
 cat /tmp/env-vars
