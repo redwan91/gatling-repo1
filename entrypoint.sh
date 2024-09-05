@@ -49,11 +49,10 @@ if [ -n "${SOURCE_REF}" ]; then
   cd ${SOURCE_CONTEXT_DIR} || exit 1
   ls -lah ./
 
-  # Ensure results directory exists inside simulations folder
+  # Ensure results directory exists
   SIMULATION_RESULTS_DIR="/opt/gatling/user-files/simulations/results"
-  mkdir -p "${SIMULATION_RESULTS_DIR}"
 
-  # Run the Gatling simulation and save results in the simulations folder
+  # Run the Gatling simulation and store results in the simulations/results folder
   /opt/gatling/bin/gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation" --results-folder "${SIMULATION_RESULTS_DIR}"
 
   export EXIT_CODE="$?"
