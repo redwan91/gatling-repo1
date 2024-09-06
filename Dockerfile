@@ -1,21 +1,21 @@
-FROM openjdk:11-jre-slim
+# Use a base image with JDK for Gatling
+FROM adoptopenjdk:11-jre-hotspot
 
-# Install required tools and download the correct Gatling bundle
-RUN apt-get update && apt-get install -y curl unzip bash && \
-    curl -fLo gatling.zip --retry 5 --retry-delay 5 https://repo1.maven.org/maven2/io/gatling/gatling-charts-highcharts-bundle/3.9.5/gatling-charts-highcharts-bundle-3.9.5-bundle.zip && \
-    unzip gatling.zip -d /opt/ && \
-    mv /opt/gatling-charts-highcharts-bundle-3.9.5 /opt/gatling && \
-    rm gatling.zip || { echo "Gatling download failed"; exit 1; }
+# Set the working directory inside the container
+WORKDIR /opt/gatling
 
-# Add custom entrypoint and scripts
-COPY entrypoint.sh /entrypoint.sh
-COPY run-gatling.sh /run-gatling.sh
+# Copy the Gatling distribution to the container
+COPY gatling /opt/gatling
 
-# Copy the simulations and results folder
-COPY simulations/ /opt/gatling/user-files/simulations/
+# Copy your simulation files (Scala simulations)
+COPY src/test/scala /opt/gatling/user-files/simulations
 
-# Set the necessary permissions
-RUN chmod +x /run-gatling.sh
+# Copy your resource files (CSV, JSON files, etc.)
+COPY src/test/resources /opt/gatling/user-files/resources
 
-# Set entrypoint
-ENTRYPOINT ["bash", "/entrypoint.sh"]
+# Set environment variables for Gatling
+ENV GATLING_HOME=/opt/gatling
+ENV PATH=$PATH:/opt/gatling/bin
+
+# Run Gatling with the simulation passed as an argument
+ENTRYPOINT ["gatling.sh", "-s"]
