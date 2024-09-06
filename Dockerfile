@@ -1,21 +1,16 @@
-# Use a base image with JDK for Gatling
-FROM adoptopenjdk:11-jre-hotspot
+FROM denvazh/gatling
 
-# Set the working directory inside the container
-WORKDIR /opt/gatling
+# Copy entrypoint script into the image
+ADD entrypoint.sh /entrypoint.sh
 
-# Copy the Gatling distribution to the container
-COPY gatling /opt/gatling
+# Install necessary tools and clean up after installation
+RUN apk add --update jq git bash curl     && rm -rf /var/cache/apk/*  # Clean-up to reduce image size
 
-# Copy your simulation files (Scala simulations)
-COPY src/test/scala /opt/gatling/user-files/simulations
+# Copy the Gatling simulations into the appropriate folder
+COPY simulations/ /opt/gatling/user-files/simulations/
 
-# Copy your resource files (CSV, JSON files, etc.)
-COPY src/test/resources /opt/gatling/user-files/resources
+# Set entrypoint to use the custom script
+ENTRYPOINT ["bash", "/entrypoint.sh"]
 
-# Set environment variables for Gatling
-ENV GATLING_HOME=/opt/gatling
-ENV PATH=$PATH:/opt/gatling/bin
-
-# Run Gatling with the simulation passed as an argument
-ENTRYPOINT ["gatling.sh", "-s"]
+# Run the container as root only where required
+USER root
