@@ -11,15 +11,17 @@ fi
 echo $BUILD | jq . - > /tmp/build-spec.json
 cat /tmp/build-spec.json
 
-# Extract and export environment variables
+# Fix jq command syntax issue
 cat /tmp/build-spec.json | jq -r '.spec.strategy.customStrategy.env[] | "export \(.name)=\(.value)"' > /tmp/env-vars
+
 source /tmp/env-vars
+cat /tmp/env-vars
+echo --
 
 if [[ "$DEBUG" = "true" ]]; then
     set -x
 fi
 
-# Ensure the repository URL is valid
 if [[ "${SOURCE_REPOSITORY}" != "git://"* ]] && [[ "${SOURCE_REPOSITORY}" != "git@"* ]]; then
   URL="${SOURCE_REPOSITORY}"
   if [[ "${URL}" != "http://"* ]] && [[ "${URL}" != "https://"* ]]; then
@@ -27,9 +29,10 @@ if [[ "${SOURCE_REPOSITORY}" != "git://"* ]] && [[ "${SOURCE_REPOSITORY}" != "gi
   fi
 fi
 
-# Proceed with cloning the repository
+# Use the public repository URL
 SOURCE_REPOSITORY="${URL}"
 
+# Proceed with cloning
 if [ -n "${SOURCE_REF}" ]; then
   BUILD_DIR=$(mktemp -d)
   git clone --recursive "${SOURCE_REPOSITORY}" "${BUILD_DIR}"
@@ -45,24 +48,28 @@ if [ -n "${SOURCE_REF}" ]; then
     exit 1
   fi
 
-  echo "-- source-ref"
-  cd ${SOURCE_CONTEXT_DIR} || exit 1
+  echo -- source-ref
+  cd ${SOURCE_CONTEXT_DIR}
   ls -lah ./
 
-  # Ensure results directory exists
-  SIMULATION_RESULTS_DIR="/opt/gatling/user-files/simulations/results"
-
-  # Run the Gatling simulation and store results in the simulations/results folder
-  /opt/gatling/bin/gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation" --results-folder "${SIMULATION_RESULTS_DIR}"
+  # Ensure gatling.sh has the correct executable permissions
+  if [ -f "/opt/gatling/bin/gatling.sh" ]; then
+    chmod +x /opt/gatling/bin/gatling.sh
+    /opt/gatling/bin/gatling.sh --run-description "${RUN_DESCRIPTION}" --simulation "simulations.MySimulation"
+  else
+    echo "Error: gatling.sh not found!"
+    exit 1
+  fi
 
   export EXIT_CODE="$?"
 
   # Check if the results directory exists and process it
-  if [ -d "${SIMULATION_RESULTS_DIR}" ]; then
-    cd "${SIMULATION_RESULTS_DIR}" || exit 1
+  if [ -d "/opt/gatling/results/" ]; then
+    cd /opt/gatling/results/
     if [ "$(ls -A .)" ]; then
+      cd *
       for file in $(find ./ -type f); do
-        curl -s -k -u "$GO_USERNAME:$GO_PASSWORD" "$GO_SERVER_URL/files/$GO_PIPELINE_NAME/$GO_PIPELINE_COUNTER/$GO_STAGE_NAME/$GO_STAGE_COUNTER/$GO_JOB_NAME/${file:2}" -F file=@${file:2} -H 'Confirm:true' > /dev/null
+        curl -s -k -u $GO_USERNAME:$GO_PASSWORD $GO_SERVER_URL/files/$GO_PIPELINE_NAME/$GO_PIPELINE_COUNTER/$GO_STAGE_NAME/$GO_STAGE_COUNTER/$GO_JOB_NAME/${file:2} -F file=@${file:2} -H 'Confirm:true' > /dev/null
       done
     else
       echo "No files found in the results directory."
